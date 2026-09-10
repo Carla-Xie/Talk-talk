@@ -140,7 +140,7 @@
         '<p class="practice-hint">按住下方按钮，朗读商家英文回答</p>' +
         '<p class="practice-target"></p>' +
         '<button type="button" class="record-btn" id="record-btn">按住<br>录音</button>' +
-        '<p class="record-status" id="record-status">松开后自动提交豆包评分</p>' +
+        '<p class="record-status" id="record-status">松开后自动评分</p>' +
         '<div class="score-panel" id="score-panel" hidden>' +
           '<p class="score-rating" id="score-rating"></p>' +
           '<div class="score-row"><span>发音准确度</span><strong id="score-pronunciation">-</strong></div>' +
@@ -256,7 +256,7 @@
       scoring = true;
       var btn = document.getElementById('record-btn');
       if (btn) btn.disabled = true;
-      setStatus('正在提交豆包 Seed 评分…');
+      setStatus('正在评分…');
 
       fetch('/api/score', {
         method: 'POST',
@@ -269,11 +269,7 @@
             try {
               data = JSON.parse(text);
             } catch (e) {
-              throw new Error(
-                '接口返回了非 JSON（HTTP ' + res.status + '）。' +
-                '请确认打开的是 Render 地址，且服务已醒来。预览：' +
-                text.replace(/\s+/g, ' ').slice(0, 120)
-              );
+              throw new Error('评分接口异常（HTTP ' + res.status + '）');
             }
             if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
             return data;
@@ -309,9 +305,13 @@
       document.getElementById('score-transcript').textContent = '识别结果：' + (data.transcript || '');
       var comment = data.comment ? ('点评：' + data.comment) : '';
       if (data.source === 'local_fallback') {
-        comment = (comment ? comment + ' ' : '') + '（豆包模型未开通，当前为本地兜底评分）';
+        comment = (comment ? comment + ' ' : '') + '（当前为本地兜底评分）';
       }
       document.getElementById('score-comment').textContent = comment;
+      if (data.warning) {
+        document.getElementById('score-comment').textContent =
+          comment + (comment ? ' ' : '') + data.warning;
+      }
     }
   </script>
 </body>
