@@ -200,7 +200,9 @@
       };
 
       recognition.onerror = function (event) {
-        setStatus('识别出错：' + (event.error || 'unknown'));
+        var err = event.error || '';
+        if (err === 'aborted' || err === 'no-speech') return;
+        setStatus('识别出错：' + err);
       };
 
       try {
