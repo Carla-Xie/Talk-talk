@@ -7,11 +7,32 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <button type="button" id="back" hidden aria-label="返回">←</button>
-  <div id="cards"></div>
-  <div id="dialog" hidden>
-    <div id="dialog-body"></div>
+  <div id="page-home" class="page on"></div>
+
+  <div id="page-scenes" class="page">
+    <button type="button" id="back" hidden aria-label="返回">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L7 12l8 7" fill="none" stroke="#111" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="cards"></div>
+    <div id="dialog" hidden>
+      <div id="dialog-body"></div>
+    </div>
   </div>
+
+  <div id="page-practice" class="page">
+    <div class="placeholder">练习</div>
+  </div>
+  <div id="page-me" class="page">
+    <div class="placeholder">我的</div>
+  </div>
+
+  <nav id="tabbar">
+    <button type="button" data-page="home" class="on">首页</button>
+    <button type="button" data-page="scenes">场景</button>
+    <button type="button" data-page="practice">练习</button>
+    <button type="button" data-page="me">我的</button>
+  </nav>
+
 
   <script>
     var SCENES = [
@@ -268,11 +289,39 @@
     ];
 
     var FAV_KEY = 'talk_talk_favs';
+    var LEARNED_KEY = 'talk_talk_learned';
+    var STREAK_DAYS = 3;
+    var HOME_BANK = [
+      { en: 'I can give you 10% off.', zh: '我可以给你打九折。' },
+      { en: "That's the lowest price I can offer.", zh: '这是我能给的最低价了。' },
+      { en: "If you buy two, I'll give you a discount.", zh: '买两件的话，我给你优惠。' },
+      { en: 'The price is already very fair.', zh: '这个价格已经很公道了。' },
+      { en: "It's made of silk.", zh: '这是丝绸做的。' },
+      { en: 'This is a traditional Chinese handicraft.', zh: '这是中国传统手工艺品。' },
+      { en: 'This one is very popular with tourists.', zh: '这款很受游客欢迎。' },
+      { en: 'It comes in different colors.', zh: '它有不同颜色。' },
+      { en: "It's about five minutes' walk.", zh: '步行大约五分钟。' },
+      { en: 'The entrance is over there.', zh: '入口在那边。' },
+      { en: 'Turn right at the corner.', zh: '在拐角处右转。' },
+      { en: "It's next to the bridge.", zh: '在桥旁边。' },
+      { en: 'You can pay by WeChat or Alipay.', zh: '可以用微信或支付宝支付。' },
+      { en: 'Here is your change.', zh: '这是找您的零钱。' },
+      { en: 'Please check your change.', zh: '请点一下零钱。' },
+      { en: "Sorry, we don't accept credit cards.", zh: '抱歉，我们不收信用卡。' },
+      { en: "It's a little spicy.", zh: '有点辣。' },
+      { en: "It's made with fresh fish.", zh: '是用新鲜鱼做的。' },
+      { en: 'Would you like rice or noodles?', zh: '你要米饭还是面条？' },
+      { en: 'Please wait a few minutes.', zh: '请等几分钟。' }
+    ];
+    var PLAY_ICON = '<svg viewBox="0 0 12 14" width="14" height="16" aria-hidden="true"><polygon points="2,1 11,7 2,13"/></svg>';
+    var STAR_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.7l1.2-6.6L2.5 9.5l6.6-.9z"/></svg>';
+    var CN_NUM = ['一', '二', '三', '四', '五'];
     var cards = document.getElementById('cards');
     var dialog = document.getElementById('dialog');
     var dialogBody = document.getElementById('dialog-body');
     var backBtn = document.getElementById('back');
     var currentScene = null;
+    var currentItem = null;
     var view = 'scenes';
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -300,6 +349,80 @@
         html = html.replace(re, '<span class="hl">$&</span>');
       }
       return html;
+    }
+
+    function loadLearned() {
+      try { return JSON.parse(localStorage.getItem(LEARNED_KEY) || '[]'); }
+      catch (e) { return []; }
+    }
+
+    function itemKey(si, ii) {
+      return si + '-' + ii;
+    }
+
+    function markLearned(si, ii) {
+      var list = loadLearned();
+      var k = itemKey(si, ii);
+      if (list.indexOf(k) === -1) {
+        list.push(k);
+        localStorage.setItem(LEARNED_KEY, JSON.stringify(list));
+      }
+    }
+
+    function totalSentenceCount() {
+      var n = 0;
+      for (var s = 0; s < SCENES.length; s++) n += SCENES[s].items.length * 2;
+      return n;
+    }
+
+    function masteredSentenceCount() {
+      return loadLearned().length * 2;
+    }
+
+    function firstUnlearnedTitle() {
+      var learned = loadLearned();
+      for (var s = 0; s < SCENES.length; s++) {
+        for (var i = 0; i < SCENES[s].items.length; i++) {
+          if (learned.indexOf(itemKey(s, i)) === -1) return SCENES[s].items[i].title;
+        }
+      }
+      return '已全部学完';
+    }
+
+    function pickHomeSentence() {
+      var d = new Date();
+      var i = (d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate()) % HOME_BANK.length;
+      return HOME_BANK[i];
+    }
+
+    function renderHome() {
+      var total = totalSentenceCount();
+      var got = Math.min(masteredSentenceCount(), total);
+      var r = 40;
+      var c = 2 * Math.PI * r;
+      var off = c * (1 - (total ? got / total : 0));
+      var quote = pickHomeSentence();
+      var task = firstUnlearnedTitle();
+      document.getElementById('page-home').innerHTML =
+        '<h1 id="home-title">能开口就行</h1>' +
+        '<p id="home-sub">Just Speak Aloud</p>' +
+        '<div class="ring-wrap">' +
+          '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+            '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="#ddd" stroke-width="8"></circle>' +
+            '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="#111" stroke-width="8" ' +
+              'stroke-linecap="round" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '"></circle>' +
+          '</svg>' +
+          '<div class="ring-label"><strong>' + got + ' / ' + total + '</strong><span>已掌握</span></div>' +
+        '</div>' +
+        '<div class="home-quote">' +
+          '<p class="en-row"><span class="en">' + escapeHtml(quote.en) + '</span>' +
+            '<button type="button" class="speak" aria-label="播放">' + PLAY_ICON + '</button></p>' +
+          '<p class="zh">' + escapeHtml(quote.zh) + '</p>' +
+        '</div>' +
+        '<div class="home-bottom">' +
+          '<div class="home-box"><p class="k">今日学习任务</p><p class="v">' + escapeHtml(task) + '</p></div>' +
+          '<div class="home-box"><p class="k">连续学习</p><p class="v">' + STREAK_DAYS + ' 天</p></div>' +
+        '</div>';
     }
 
     function loadFavs() {
@@ -338,10 +461,6 @@
       setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 1400);
     }
 
-    var PLAY_ICON = '<svg viewBox="0 0 12 14" width="14" height="16" aria-hidden="true"><polygon points="2,1 11,7 2,13"/></svg>';
-    var STAR_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.7l1.2-6.6L2.5 9.5l6.6-.9z"/></svg>';
-    var CN_NUM = ['一', '二', '三', '四', '五'];
-
     function sentenceBtns(en, zh) {
       return '<button type="button" class="speak" aria-label="播放">' + PLAY_ICON + '</button>' +
         '<span class="fav-wrap"><button type="button" class="fav' + (isFav(en, zh) ? ' on' : '') +
@@ -374,15 +493,18 @@
       renderCards(SCENES[si].items, 'item');
     }
 
-    function openItem(item) {
+    function openItem(si, ii) {
+      currentScene = si;
+      currentItem = ii;
+      var item = SCENES[si].items[ii];
       view = 'dialog';
       dialogBody.innerHTML =
         '<p>外国游客问题：</p>' +
-        '<p>英文句子：<span class="en">' + highlight(item.visitorEn, item.visitorHl) + '</span> ' +
+        '<p class="en-row">英文句子：<span class="en">' + highlight(item.visitorEn, item.visitorHl) + '</span> ' +
           sentenceBtns(item.visitorEn, item.visitorZh) + '</p>' +
         '<p>中文翻译：' + highlight(item.visitorZh, item.visitorHl) + '</p>' +
         '<p>商家回答：</p>' +
-        '<p>英文句子：<span class="en merchant-en">' + highlight(item.merchantEn, item.merchantHl) + '</span> ' +
+        '<p class="en-row">英文句子：<span class="en merchant-en">' + highlight(item.merchantEn, item.merchantHl) + '</span> ' +
           sentenceBtns(item.merchantEn, item.merchantZh) + '</p>' +
         '<p>对应中文：' + highlight(item.merchantZh, item.merchantHl) + '</p>';
       mountPracticePanel();
@@ -396,7 +518,7 @@
       if (!card) return;
       var i = Number(card.getAttribute('data-i'));
       if (card.getAttribute('data-kind') === 'scene') showSubs(i);
-      else openItem(SCENES[currentScene].items[i]);
+      else openItem(currentScene, i);
     };
 
     function speak(text, btn) {
@@ -592,6 +714,7 @@
           });
         })
         .then(function (data) {
+          if (currentScene != null && currentItem != null) markLearned(currentScene, currentItem);
           renderScore(data);
           setStatus('评分完成，可再次按住重试');
         })
@@ -630,7 +753,32 @@
       }
     }
 
+    function showTab(name) {
+      var ids = { home: 'page-home', scenes: 'page-scenes', practice: 'page-practice', me: 'page-me' };
+      for (var k in ids) {
+        document.getElementById(ids[k]).classList.toggle('on', k === name);
+      }
+      var tabs = document.querySelectorAll('#tabbar button');
+      for (var t = 0; t < tabs.length; t++) {
+        tabs[t].classList.toggle('on', tabs[t].getAttribute('data-page') === name);
+      }
+      if (name === 'home') renderHome();
+    }
+
+    document.getElementById('tabbar').onclick = function (e) {
+      var b = e.target.closest('button');
+      if (b) showTab(b.getAttribute('data-page'));
+    };
+
+    document.getElementById('page-home').onclick = function (e) {
+      var btn = e.target.closest('.speak');
+      if (!btn) return;
+      var en = btn.previousElementSibling;
+      if (en && en.classList.contains('en')) speak(en.textContent, btn);
+    };
+
     showScenes();
+    showTab('home');
   </script>
 </body>
 </html>
