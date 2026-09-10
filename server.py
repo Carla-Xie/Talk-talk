@@ -131,13 +131,15 @@ def score_with_doubao(target: str, transcript: str) -> dict[str, Any]:
             {"role": "user", "content": user},
         ],
         "temperature": 0.2,
+        "max_tokens": 300,
     }
     headers = {
         "Authorization": f"Bearer {ARK_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    resp = requests.post(ARK_URL, headers=headers, json=payload, timeout=60)
+    # 控制在 gunicorn/平台超时之前结束，避免 WORKER TIMEOUT → HTML 500
+    resp = requests.post(ARK_URL, headers=headers, json=payload, timeout=25)
     if resp.status_code >= 400:
         raise RuntimeError(f"方舟 API 错误 {resp.status_code}: {resp.text[:500]}")
 
@@ -212,8 +214,16 @@ def score():
         msg = str(exc)
         print("score error:", msg)
         print(traceback.format_exc())
-        # 模型未开通 / 找不到时，使用本地兜底，保证前端流程可演示
-        if "ModelNotOpen" in msg or "InvalidEndpointOrModel" in msg or "NotFound" in msg:
+        # 未开通 / 找不到 / 超时：本地兜底，避免前端收到 HTML 500
+        soft = (
+            "ModelNotOpen" in msg
+            or "InvalidEndpointOrModel" in msg
+            or "NotFound" in msg
+            or "timed out" in msg.lower()
+            or "timeout" in msg.lower()
+            or isinstance(exc, (requests.Timeout, requests.ConnectionError))
+        )
+        if soft:
             result = local_fallback_score(target, transcript)
             result["warning"] = msg[:300]
             return jsonify(result)
