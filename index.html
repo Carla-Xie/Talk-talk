@@ -308,6 +308,7 @@
     var STREAK_KEY = 'talk_talk_streak';
     var STUDY_KEY = 'talk_talk_study_ms';
     var BADGE_KEY = 'talk_talk_badges_seen';
+    var REVIEWED_KEY = 'talk_talk_reviewed';
     var meView = 'home';
     var HOME_BANK = [
       { en: 'I can give you 10% off.', zh: '我可以给你打九折。' },
@@ -451,6 +452,43 @@
 
     function itemKey(si, ii) {
       return si + '-' + ii;
+    }
+
+    function isItemLearned(si, ii) {
+      var it = SCENES[si] && SCENES[si].items[ii];
+      if (!it) return false;
+      return isSentenceMastered(it.visitorEn) && isSentenceMastered(it.merchantEn);
+    }
+
+    function loadReviewed() {
+      return loadJson(REVIEWED_KEY, []);
+    }
+
+    function isItemReviewed(si, ii) {
+      return loadReviewed().indexOf(itemKey(si, ii)) !== -1;
+    }
+
+    function markReviewed(si, ii) {
+      var k = itemKey(si, ii);
+      var list = loadReviewed();
+      if (list.indexOf(k) === -1) {
+        list.push(k);
+        saveJson(REVIEWED_KEY, list);
+      }
+    }
+
+    function itemLearnState(si, ii) {
+      if (!isItemLearned(si, ii)) return '';
+      return isItemReviewed(si, ii) ? 'done' : 'pending';
+    }
+
+    function sceneLearnState(si) {
+      var items = SCENES[si] && SCENES[si].items;
+      if (!items || !items.length) return '';
+      for (var i = 0; i < items.length; i++) {
+        if (itemLearnState(si, i) !== 'done') return '';
+      }
+      return 'done';
     }
 
     function allSceneSentences() {
@@ -729,8 +767,12 @@
       var html = '';
       for (var i = 0; i < list.length; i++) {
         var label = kind === 'scene' ? ('场景' + CN_NUM[i] + '：' + list[i].title) : list[i].title;
-        html += '<div class="card" data-kind="' + kind + '" data-i="' + i + '">' +
-          escapeHtml(label) + '</div>';
+        var state = kind === 'scene' ? sceneLearnState(i) : itemLearnState(currentScene, i);
+        var status = state === 'pending' ? '待复习' : (state === 'done' ? '已学会' : '');
+        html += '<div class="card' + (state ? ' card-' + state : '') + '" data-kind="' + kind + '" data-i="' + i + '">' +
+          '<span class="card-title">' + escapeHtml(label) + '</span>' +
+          (status ? '<span class="card-status">' + status + '</span>' : '') +
+          '</div>';
       }
       cards.innerHTML = html;
       cards.hidden = false;
@@ -837,6 +879,8 @@
 
     function advanceDaily() {
       var data = getDaily();
+      var cur = data.queue[data.idx];
+      if (cur) markReviewed(cur.si, cur.ii);
       data.idx += 1;
       saveDaily(data);
       hideDailyNext();

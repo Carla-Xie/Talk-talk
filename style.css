@@ -181,6 +181,41 @@ body {
   background: #fff;
   text-align: left;
   font-size: 1.18em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8em;
+  box-sizing: border-box;
+}
+
+.card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-status {
+  flex-shrink: 0;
+  font-size: .92em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.card-pending {
+  border: 2px solid #e6b800;
+  background: #fff8dc;
+}
+
+.card-pending .card-status {
+  color: #b38600;
+}
+
+.card-done {
+  border: 2px solid #2ea86a;
+  background: #e8f8ee;
+}
+
+.card-done .card-status {
+  color: #1e7e34;
 }
 
 .card:hover {
