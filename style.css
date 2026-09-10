@@ -1036,20 +1036,89 @@ body.home-on #tabbar {
     font-size: 15px;
   }
 
-  #cards:not([hidden]) {
-    padding: .8em .8em 4.8em;
-    gap: .7em;
+  #page-home {
+    min-height: 100dvh;
+    height: 100dvh;
+    padding: 1em 1em calc(5.2em + env(safe-area-inset-bottom));
+    justify-content: flex-start;
   }
 
-  #cards.col:not([hidden]) .card {
-    width: min(24em, 100%);
+  #home-title {
+    margin-top: auto;
+    font-size: 2.15em;
+  }
+
+  #home-sub {
+    font-size: 1.18em;
+  }
+
+  .ring-wrap {
+    width: 11em;
+    height: 11em;
+  }
+
+  .ring-label {
     font-size: 1.12em;
   }
 
-  .prac-detail-inner.prac-fav-page {
-    width: 100%;
-    max-width: 26em;
+  .home-quote {
+    margin-bottom: auto;
+  }
+
+  .home-quote .en-row {
+    font-size: 1.18em;
+    flex-wrap: wrap;
+  }
+
+  .home-quote .en {
+    white-space: normal;
+  }
+
+  .home-bottom {
+    margin-top: 1em;
+    padding-top: 0;
+    gap: .7em;
+  }
+
+  #cards:not([hidden]) {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: safe center;
+    min-height: calc(100dvh - 4.6em);
+    overflow-y: auto;
+    padding: .9em 0 4.8em;
+    gap: .75em;
+  }
+
+  #cards .card {
+    width: 92%;
+    max-width: 92%;
+    box-sizing: border-box;
+    font-size: 1.12em;
+  }
+
+  .prac-detail {
+    height: calc(100dvh - 4.6em);
+    min-height: calc(100dvh - 4.6em);
+    padding: 3.2em .9em 1em;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .prac-detail-inner,
+  .prac-detail-inner.prac-fav-page,
+  .prac-detail-inner.prac-wrong-page {
+    width: 92%;
+    max-width: 92%;
+    margin: 0 auto;
     font-size: 1em;
+  }
+
+  .prac-detail-inner.prac-daily-page {
+    min-height: 0;
+    width: 92%;
+    max-width: 92%;
   }
 
   .fav-card .en-row {
@@ -1072,33 +1141,8 @@ body.home-on #tabbar {
   }
 
   #dialog-body .en-row,
-  .dialog-card .en-row,
-  .home-quote .en-row {
+  .dialog-card .en-row {
     flex-wrap: wrap;
-  }
-
-  .home-quote .en {
-    white-space: normal;
-  }
-
-  #home-title {
-    font-size: 2.15em;
-  }
-
-  #home-sub {
-    font-size: 1.18em;
-  }
-
-  .home-quote .en-row {
-    font-size: 1.18em;
-  }
-
-  #page-home {
-    padding: 3.4em 1em 5.4em;
-  }
-
-  .home-bottom {
-    gap: .7em;
   }
 
   #tabbar {
@@ -1115,7 +1159,7 @@ body.home-on #tabbar {
     max-width: 90%;
     height: auto;
     max-height: none;
-    min-height: 70vh;
+    min-height: calc(100dvh - 4.6em);
   }
 
   .prac-block h2 {
@@ -1126,15 +1170,34 @@ body.home-on #tabbar {
     font-size: 1.05em;
   }
 
+  #page-me.on {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   #me-root,
+  #me-root.me-home,
   #me-root.fb {
-    width: min(24em, 92%);
-    max-width: 24em;
-    padding: 1em 1em .8em;
+    width: 95%;
+    max-width: 95%;
+    height: calc(100dvh - 4.6em);
+    min-height: 0;
+    padding: .7em .55em .5em;
+    box-sizing: border-box;
+    overflow-y: auto;
+    font-size: 1.08em;
+  }
+
+  #me-root.about {
+    width: 95%;
+    max-width: 95%;
+    height: calc(100dvh - 4.6em);
+    min-height: 0;
+    overflow: hidden;
   }
 
   #me-name {
-    font-size: 1.6em;
+    font-size: 1.7em;
   }
 
   .me-stats {
@@ -1142,25 +1205,25 @@ body.home-on #tabbar {
   }
 
   .me-stats .home-box {
-    padding: .7em .45em;
+    padding: .75em .5em;
   }
 
   .me-stats .home-box .k {
-    font-size: .82em;
+    font-size: .85em;
   }
 
   .me-stats .home-box .v {
-    font-size: 1.05em;
+    font-size: 1.1em;
   }
 
   .me-badge img {
-    width: 7.2em;
-    height: 7.2em;
+    width: 7.4em;
+    height: 7.4em;
   }
 
   .me-badge.days7 img {
-    width: 9em;
-    height: 9em;
+    width: 9.2em;
+    height: 9.2em;
   }
 
   .about-head h1 {
@@ -1178,6 +1241,10 @@ body.home-on #tabbar {
 
   .about-block h2 {
     font-size: 1.25em;
+  }
+
+  .fb-box {
+    width: 100%;
   }
 
   .fb-box h2 {
