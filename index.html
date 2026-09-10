@@ -7,23 +7,34 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="home-bg" hidden aria-hidden="true"></div>
+  <button type="button" id="back" hidden aria-label="返回">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L7 12l8 7" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
   <div id="page-home" class="page on"></div>
 
   <div id="page-scenes" class="page">
-    <button type="button" id="back" hidden aria-label="返回">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L7 12l8 7" fill="none" stroke="#111" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
     <div id="cards"></div>
-    <div id="dialog" hidden>
-      <div id="dialog-body"></div>
-    </div>
   </div>
 
+  <div id="dialog" hidden>
+    <div id="dialog-body"></div>
+  </div>
+  <button type="button" id="daily-next" hidden>下一个</button>
+
   <div id="page-practice" class="page">
-    <div class="placeholder">练习</div>
+    <div id="practice-root"></div>
   </div>
   <div id="page-me" class="page">
-    <div class="placeholder">我的</div>
+    <div id="me-root"></div>
+  </div>
+
+  <div id="badge-pop" hidden>
+    <div class="inner">
+      <img id="badge-pop-img" alt="">
+      <p id="badge-pop-text">已激活</p>
+    </div>
   </div>
 
   <nav id="tabbar">
@@ -289,8 +300,15 @@
     ];
 
     var FAV_KEY = 'talk_talk_favs';
-    var LEARNED_KEY = 'talk_talk_learned';
-    var STREAK_DAYS = 3;
+    var MASTERED_KEY = 'talk_talk_mastered';
+    var WRONG_KEY = 'talk_talk_wrong';
+    var PASSED_KEY = 'talk_talk_passed';
+    var DAILY_KEY = 'talk_talk_daily';
+    var PROFILE_KEY = 'talk_talk_profile';
+    var STREAK_KEY = 'talk_talk_streak';
+    var STUDY_KEY = 'talk_talk_study_ms';
+    var BADGE_KEY = 'talk_talk_badges_seen';
+    var meView = 'home';
     var HOME_BANK = [
       { en: 'I can give you 10% off.', zh: '我可以给你打九折。' },
       { en: "That's the lowest price I can offer.", zh: '这是我能给的最低价了。' },
@@ -315,13 +333,17 @@
     ];
     var PLAY_ICON = '<svg viewBox="0 0 12 14" width="14" height="16" aria-hidden="true"><polygon points="2,1 11,7 2,13"/></svg>';
     var STAR_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.7l1.2-6.6L2.5 9.5l6.6-.9z"/></svg>';
+    var PEN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#333" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
     var CN_NUM = ['一', '二', '三', '四', '五'];
     var cards = document.getElementById('cards');
     var dialog = document.getElementById('dialog');
     var dialogBody = document.getElementById('dialog-body');
     var backBtn = document.getElementById('back');
+    var dailyNextBtn = document.getElementById('daily-next');
     var currentScene = null;
     var currentItem = null;
+    var dialogMode = 'normal';
+    var practiceView = 'list';
     var view = 'scenes';
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -351,48 +373,281 @@
       return html;
     }
 
-    function loadLearned() {
-      try { return JSON.parse(localStorage.getItem(LEARNED_KEY) || '[]'); }
-      catch (e) { return []; }
+    function loadJson(key, fallback) {
+      try {
+        var v = JSON.parse(localStorage.getItem(key) || 'null');
+        return v == null ? fallback : v;
+      } catch (e) { return fallback; }
+    }
+
+    function saveJson(key, val) {
+      localStorage.setItem(key, JSON.stringify(val));
+    }
+
+    function loadMastered() {
+      return loadJson(MASTERED_KEY, []);
+    }
+
+    function isSentenceMastered(en) {
+      var t = (en || '').trim();
+      return loadMastered().indexOf(t) !== -1;
+    }
+
+    function markSentenceMastered(en) {
+      var t = (en || '').trim();
+      if (!t) return;
+      var list = loadMastered();
+      if (list.indexOf(t) === -1) {
+        list.push(t);
+        saveJson(MASTERED_KEY, list);
+      }
+    }
+
+    function loadWrong() {
+      return loadJson(WRONG_KEY, {});
+    }
+
+    function loadPassed() {
+      return loadJson(PASSED_KEY, []);
+    }
+
+    function markPassed(si, ii) {
+      var k = itemKey(si, ii);
+      var list = loadPassed();
+      if (list.indexOf(k) === -1) {
+        list.push(k);
+        saveJson(PASSED_KEY, list);
+      }
+      injectDaily(si, ii);
+    }
+
+    function addWrong(si, ii) {
+      var map = loadWrong();
+      var k = itemKey(si, ii);
+      if (!map[k]) map[k] = { goods: 0 };
+      saveJson(WRONG_KEY, map);
+      injectDaily(si, ii);
+    }
+
+    function bumpWrongGoods(si, ii) {
+      var map = loadWrong();
+      var k = itemKey(si, ii);
+      if (!map[k]) return;
+      map[k].goods = (map[k].goods || 0) + 1;
+      if (map[k].goods >= 7) delete map[k];
+      saveJson(WRONG_KEY, map);
+    }
+
+    function removeWrong(si, ii) {
+      var map = loadWrong();
+      delete map[itemKey(si, ii)];
+      saveJson(WRONG_KEY, map);
+    }
+
+    function parseKey(k) {
+      var p = String(k).split('-');
+      return { si: Number(p[0]), ii: Number(p[1]) };
     }
 
     function itemKey(si, ii) {
       return si + '-' + ii;
     }
 
-    function markLearned(si, ii) {
-      var list = loadLearned();
-      var k = itemKey(si, ii);
-      if (list.indexOf(k) === -1) {
-        list.push(k);
-        localStorage.setItem(LEARNED_KEY, JSON.stringify(list));
+    function allSceneSentences() {
+      var list = [];
+      for (var s = 0; s < SCENES.length; s++) {
+        for (var i = 0; i < SCENES[s].items.length; i++) {
+          var it = SCENES[s].items[i];
+          list.push(it.visitorEn, it.merchantEn);
+        }
       }
+      return list;
     }
 
     function totalSentenceCount() {
-      var n = 0;
-      for (var s = 0; s < SCENES.length; s++) n += SCENES[s].items.length * 2;
-      return n;
+      return allSceneSentences().length;
     }
 
     function masteredSentenceCount() {
-      return loadLearned().length * 2;
+      var n = 0;
+      var all = allSceneSentences();
+      for (var i = 0; i < all.length; i++) {
+        if (isSentenceMastered(all[i])) n++;
+      }
+      return n;
     }
 
     function firstUnlearnedTitle() {
-      var learned = loadLearned();
       for (var s = 0; s < SCENES.length; s++) {
         for (var i = 0; i < SCENES[s].items.length; i++) {
-          if (learned.indexOf(itemKey(s, i)) === -1) return SCENES[s].items[i].title;
+          var it = SCENES[s].items[i];
+          if (!isSentenceMastered(it.visitorEn) || !isSentenceMastered(it.merchantEn)) {
+            return it.title;
+          }
         }
       }
       return '已全部学完';
     }
 
     function pickHomeSentence() {
+      return HOME_BANK[Math.floor(Math.random() * HOME_BANK.length)];
+    }
+
+    function todayStr() {
       var d = new Date();
-      var i = (d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate()) % HOME_BANK.length;
-      return HOME_BANK[i];
+      return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    }
+
+    function yesterdayStr() {
+      var d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    }
+
+    function getStreakDays() {
+      var s = loadJson(STREAK_KEY, { days: 0, last: '' });
+      var today = todayStr();
+      if (s.last === today) return s.days || 1;
+      if (s.last === yesterdayStr()) s.days = (s.days || 0) + 1;
+      else s.days = 1;
+      s.last = today;
+      saveJson(STREAK_KEY, s);
+      return s.days;
+    }
+
+    function getProfile() {
+      var p = loadJson(PROFILE_KEY, { name: '西湖商户' });
+      if (!p.name) p.name = '西湖商户';
+      return p;
+    }
+
+    function getStudyMs() {
+      return Number(localStorage.getItem(STUDY_KEY) || 0) || 0;
+    }
+
+    function addStudyMs(ms) {
+      localStorage.setItem(STUDY_KEY, String(getStudyMs() + ms));
+    }
+
+    function formatStudy(ms) {
+      var m = Math.floor(ms / 60000);
+      var h = Math.floor(m / 60);
+      m = m % 60;
+      if (h <= 0) return m + ' 分钟';
+      return h + ' 小时 ' + m + ' 分钟';
+    }
+
+    function shuffleNoAdj(arr) {
+      var pool = arr.slice();
+      var out = [];
+      while (pool.length) {
+        var cands = [];
+        for (var i = 0; i < pool.length; i++) {
+          var same = out.length && pool[i].si === out[out.length - 1].si && pool[i].ii === out[out.length - 1].ii;
+          if (!same) cands.push(i);
+        }
+        if (!cands.length) cands = [0];
+        var pick = cands[Math.floor(Math.random() * cands.length)];
+        out.push(pool[pick]);
+        pool.splice(pick, 1);
+      }
+      return out;
+    }
+
+    function neededDailyTimes(si, ii) {
+      var k = itemKey(si, ii);
+      if (loadWrong()[k]) return 1;
+      if (loadPassed().indexOf(k) !== -1) return 1;
+      var it = SCENES[si] && SCENES[si].items[ii];
+      if (!it) return 0;
+      if (isSentenceMastered(it.visitorEn) || isSentenceMastered(it.merchantEn)) return 1;
+      return 0;
+    }
+
+    function buildDailyQueue() {
+      var units = [];
+      for (var s = 0; s < SCENES.length; s++) {
+        for (var i = 0; i < SCENES[s].items.length; i++) {
+          if (neededDailyTimes(s, i)) units.push({ si: s, ii: i });
+        }
+      }
+      return shuffleNoAdj(units);
+    }
+
+    function uniquifyDaily(data) {
+      var seen = {};
+      var out = [];
+      var newIdx = 0;
+      for (var i = 0; i < data.queue.length; i++) {
+        var k = itemKey(data.queue[i].si, data.queue[i].ii);
+        if (seen[k]) continue;
+        seen[k] = true;
+        if (i < data.idx) newIdx += 1;
+        out.push(data.queue[i]);
+      }
+      data.queue = out;
+      data.idx = Math.min(newIdx, out.length);
+      return data;
+    }
+
+    function getDaily() {
+      var data = loadJson(DAILY_KEY, null);
+      var day = todayStr();
+      if (!data || data.date !== day) {
+        data = { date: day, queue: buildDailyQueue(), idx: 0 };
+        saveJson(DAILY_KEY, data);
+      } else {
+        var before = data.queue.length + ':' + data.idx;
+        uniquifyDaily(data);
+        if (before !== data.queue.length + ':' + data.idx) saveDaily(data);
+      }
+      return data;
+    }
+
+    function saveDaily(data) {
+      saveJson(DAILY_KEY, data);
+    }
+
+    function injectDaily(si, ii) {
+      if (!neededDailyTimes(si, ii)) return;
+      var data = getDaily();
+      for (var i = 0; i < data.queue.length; i++) {
+        if (data.queue[i].si === si && data.queue[i].ii === ii) return;
+      }
+      data.queue.push({ si: si, ii: ii });
+      var done = data.queue.slice(0, data.idx);
+      var rest = data.queue.slice(data.idx);
+      data.queue = done.concat(shuffleNoAdj(rest));
+      saveDaily(data);
+    }
+
+    var COMP_BGS = ['picture/comp_homepage1.jpg', 'picture/comp_homepage2.jpg', 'picture/comp_homepage3.jpg'];
+    var PHONE_BGS = ['picture/phone_homepage1.jpg', 'picture/phone_homepage2.jpg', 'picture/phone_homepage3.jpg'];
+    var homeBgPick = { desktop: '', mobile: '' };
+
+    function isPhone() {
+      return window.matchMedia('(max-width: 700px)').matches;
+    }
+
+    function pickHomeBg() {
+      var mobile = isPhone();
+      var key = mobile ? 'mobile' : 'desktop';
+      if (homeBgPick[key]) return homeBgPick[key];
+      var list = mobile ? PHONE_BGS : COMP_BGS;
+      homeBgPick[key] = list[Math.floor(Math.random() * list.length)];
+      return homeBgPick[key];
+    }
+
+    function applyHomeBg(on) {
+      var el = document.getElementById('home-bg');
+      document.body.classList.toggle('home-on', !!on);
+      if (!el) return;
+      if (on) {
+        el.style.backgroundImage = 'url("' + pickHomeBg() + '")';
+        el.hidden = false;
+      } else {
+        el.hidden = true;
+      }
     }
 
     function renderHome() {
@@ -403,6 +658,7 @@
       var off = c * (1 - (total ? got / total : 0));
       var quote = pickHomeSentence();
       var task = firstUnlearnedTitle();
+      applyHomeBg(true);
       document.getElementById('page-home').innerHTML =
         '<h1 id="home-title">能开口就行</h1>' +
         '<p id="home-sub">Just Speak Aloud</p>' +
@@ -421,7 +677,7 @@
         '</div>' +
         '<div class="home-bottom">' +
           '<div class="home-box"><p class="k">今日学习任务</p><p class="v">' + escapeHtml(task) + '</p></div>' +
-          '<div class="home-box"><p class="k">连续学习</p><p class="v">' + STREAK_DAYS + ' 天</p></div>' +
+          '<div class="home-box"><p class="k">连续学习</p><p class="v">' + getStreakDays() + ' 天</p></div>' +
         '</div>';
     }
 
@@ -493,23 +749,176 @@
       renderCards(SCENES[si].items, 'item');
     }
 
-    function openItem(si, ii) {
+    function openItem(si, ii, mode) {
       currentScene = si;
       currentItem = ii;
+      dialogMode = mode || 'normal';
       var item = SCENES[si].items[ii];
       view = 'dialog';
+      var extra = '';
+      if (dialogMode === 'wrong') {
+        extra = '<p class="review-banner">错题复习中...</p>' +
+          '<button type="button" class="wrong-del" data-si="' + si + '" data-ii="' + ii + '">从错题本删除</button>';
+      } else if (dialogMode === 'daily') {
+        extra = '<p class="review-banner">每日复习中...</p>';
+      }
       dialogBody.innerHTML =
-        '<p>外国游客问题：</p>' +
-        '<p class="en-row">英文句子：<span class="en">' + highlight(item.visitorEn, item.visitorHl) + '</span> ' +
-          sentenceBtns(item.visitorEn, item.visitorZh) + '</p>' +
-        '<p>中文翻译：' + highlight(item.visitorZh, item.visitorHl) + '</p>' +
-        '<p>商家回答：</p>' +
-        '<p class="en-row">英文句子：<span class="en merchant-en">' + highlight(item.merchantEn, item.merchantHl) + '</span> ' +
-          sentenceBtns(item.merchantEn, item.merchantZh) + '</p>' +
-        '<p>对应中文：' + highlight(item.merchantZh, item.merchantHl) + '</p>';
-      mountPracticePanel();
+        extra +
+        '<div class="dialog-card">' +
+          '<div class="dialog-lines">' +
+            '<p>外国游客问题：</p>' +
+            '<p class="en-row">英文句子：<span class="en">' + highlight(item.visitorEn, item.visitorHl) + '</span> ' +
+              sentenceBtns(item.visitorEn, item.visitorZh) + '</p>' +
+            '<p>中文翻译：' + highlight(item.visitorZh, item.visitorHl) + '</p>' +
+            '<p>商家回答：</p>' +
+            '<p class="en-row">英文句子：<span class="en merchant-en">' + highlight(item.merchantEn, item.merchantHl) + '</span> ' +
+              sentenceBtns(item.merchantEn, item.merchantZh) + '</p>' +
+            '<p>对应中文：' + highlight(item.merchantZh, item.merchantHl) + '</p>' +
+          '</div>' +
+        '</div>';
       cards.hidden = true;
       dialog.hidden = false;
+      dialog.classList.toggle('daily-mode', dialogMode === 'daily');
+      hideDailyNext();
+      freezeDialogWidth();
+      mountPracticePanel();
+      backBtn.hidden = false;
+    }
+
+    function freezeDialogWidth() {
+      var card = dialogBody.querySelector('.dialog-card');
+      var lines = dialogBody.querySelector('.dialog-lines');
+      if (!card || !lines) return;
+      card.style.width = '';
+      var w = Math.ceil(lines.getBoundingClientRect().width);
+      if (w > 0) card.style.width = w + 'px';
+    }
+
+    function hideDailyNext() {
+      dailyNextBtn.hidden = true;
+      dialog.classList.remove('has-next');
+      dialog.classList.remove('daily-done-view');
+    }
+
+    function showDailyNext() {
+      var data = getDaily();
+      var last = data.idx >= data.queue.length - 1;
+      dailyNextBtn.textContent = last ? '完成' : '下一个';
+      dailyNextBtn.hidden = false;
+      dialog.classList.add('has-next');
+    }
+
+    function showDailyDone() {
+      hideDailyNext();
+      dialogMode = 'daily-done';
+      dialog.classList.add('daily-done-view');
+      dialogBody.innerHTML =
+        '<p class="daily-done-msg">今日复习已完成</p>' +
+        '<p class="daily-done-sub">恭喜你完成今天的复习！去继续学习新内容吧！</p>';
+      dialog.hidden = false;
+      backBtn.hidden = false;
+      cards.hidden = true;
+    }
+
+    function closeDialogToPractice() {
+      stopRecording(true);
+      speechSynthesis.cancel();
+      hideDailyNext();
+      dialog.hidden = true;
+      dialog.classList.remove('daily-mode');
+      dialog.classList.remove('daily-done-view');
+      var stayDaily = dialogMode === 'daily';
+      dialogMode = 'normal';
+      showTab('practice', true);
+      if (stayDaily) renderPracticeDetail('daily');
+      else if (practiceView === 'list') renderPractice();
+      else renderPracticeDetail(practiceView);
+    }
+
+    function advanceDaily() {
+      var data = getDaily();
+      data.idx += 1;
+      saveDaily(data);
+      hideDailyNext();
+      if (data.idx < data.queue.length) {
+        var n = data.queue[data.idx];
+        openItem(n.si, n.ii, 'daily');
+      } else {
+        showDailyDone();
+      }
+    }
+
+    function renderPractice() {
+      practiceView = 'list';
+      var wrongN = Object.keys(loadWrong()).length;
+      var favN = loadFavs().length;
+      var daily = getDaily();
+      var leftN = Math.max(0, daily.queue.length - daily.idx);
+      var root = document.getElementById('practice-root');
+      root.className = '';
+      root.innerHTML =
+        '<section class="prac-block prac-wrong" data-open="wrong"><div class="prac-block-head"><h2>错题本</h2><p class="prac-count">' + wrongN + ' 题</p></div></section>' +
+        '<section class="prac-block prac-fav" data-open="fav"><div class="prac-block-head"><h2>收藏夹</h2><p class="prac-count">' + favN + ' 句</p></div></section>' +
+        '<section class="prac-block prac-daily" data-open="daily"><div class="prac-block-head"><h2>每日复习</h2><p class="prac-count">' + leftN + ' 次</p></div></section>';
+      backBtn.hidden = true;
+    }
+
+    function renderPracticeDetail(kind) {
+      practiceView = kind;
+      var inner = '';
+      if (kind === 'wrong') {
+        var wrong = loadWrong();
+        var keys = Object.keys(wrong);
+        if (!keys.length) {
+          inner = '<p class="prac-empty">暂无错题</p>';
+        } else {
+          inner = '<div class="prac-list">';
+          for (var w = 0; w < keys.length; w++) {
+            var loc = parseKey(keys[w]);
+            if (!SCENES[loc.si] || !SCENES[loc.si].items[loc.ii]) continue;
+            var it = SCENES[loc.si].items[loc.ii];
+            var left = 7 - (wrong[keys[w]].goods || 0);
+            inner += '<div class="prac-row" data-si="' + loc.si + '" data-ii="' + loc.ii + '">' +
+              '<span>' + escapeHtml(it.title) + '</span><span>还需 ' + left + ' 次不错/优秀</span></div>';
+          }
+          inner += '</div>';
+        }
+      } else if (kind === 'fav') {
+        var favs = loadFavs();
+        if (!favs.length) {
+          inner = '<p class="prac-empty">暂无收藏</p>';
+        } else {
+          inner = '<div class="prac-list">';
+          for (var f = 0; f < favs.length; f++) {
+            inner += '<div class="fav-card">' +
+              '<p class="en-row"><span class="en">' + escapeHtml(favs[f].en) + '</span>' +
+              '<button type="button" class="speak" aria-label="播放">' + PLAY_ICON + '</button>' +
+              '<span class="fav-wrap"><button type="button" class="fav on" data-en="' + escapeHtml(favs[f].en) +
+                '" data-zh="' + escapeHtml(favs[f].zh) + '" aria-label="取消收藏">' + STAR_ICON + '</button></span>' +
+              '<span class="zh">' + escapeHtml(favs[f].zh) + '</span></p></div>';
+          }
+          inner += '</div>';
+        }
+      } else {
+        var daily = getDaily();
+        var leftN = Math.max(0, daily.queue.length - daily.idx);
+        inner = '<p class="daily-meta">今日剩余 <strong class="daily-n">' + leftN + '</strong> 次复习</p>';
+        if (!daily.queue.length) {
+          inner += '<p class="prac-empty">先去场景里学习或跟读，通过或错过的句子会出现在这里</p>';
+        } else if (leftN === 0) {
+          inner = '<p class="daily-done-msg">今日复习已完成</p>' +
+            '<p class="daily-done-sub">恭喜你完成今天的复习！去继续学习新内容吧！</p>';
+        } else {
+          inner += '<button type="button" id="daily-start">开始复习</button>';
+        }
+      }
+      var root = document.getElementById('practice-root');
+      root.className = 'detail';
+      var wrapClass = '';
+      if (kind === 'daily') wrapClass = ' prac-daily-page';
+      else if (kind === 'fav') wrapClass = ' prac-fav-page';
+      else if (kind === 'wrong') wrapClass = ' prac-wrong-page';
+      root.innerHTML = '<div class="prac-detail"><div class="prac-detail-inner' + wrapClass + '">' + inner + '</div></div>';
       backBtn.hidden = false;
     }
 
@@ -547,7 +956,19 @@
       var speakBtn = e.target.closest('.speak');
       if (speakBtn) {
         var en = speakBtn.previousElementSibling;
-        if (en && en.classList.contains('en')) speak(en.textContent, speakBtn);
+        if (en && en.classList.contains('en')) {
+          speak(en.textContent, speakBtn);
+          if (!en.classList.contains('merchant-en')) {
+            markSentenceMastered(en.textContent.trim());
+            if (currentScene != null && currentItem != null) injectDaily(currentScene, currentItem);
+          }
+        }
+        return;
+      }
+      var del = e.target.closest('.wrong-del');
+      if (del) {
+        removeWrong(Number(del.getAttribute('data-si')), Number(del.getAttribute('data-ii')));
+        closeDialogToPractice();
         return;
       }
       var favBtn = e.target.closest('.fav');
@@ -558,11 +979,34 @@
       if (on) favBtn.classList.add('on');
       else favBtn.classList.remove('on');
       showToast(favBtn, on ? '已收藏句子' : '已取消收藏');
+      if (document.getElementById('page-practice').classList.contains('on') && dialog.hidden) renderPractice();
     };
 
     backBtn.onclick = function () {
       stopRecording(true);
       speechSynthesis.cancel();
+      hideDailyNext();
+      if (dialogMode === 'daily-done') {
+        dialog.hidden = true;
+        dialog.classList.remove('daily-done-view');
+        dialogMode = 'normal';
+        showTab('practice');
+        renderPractice();
+        return;
+      }
+      if (dialogMode === 'wrong' || dialogMode === 'daily') {
+        closeDialogToPractice();
+        return;
+      }
+      if (document.getElementById('page-practice').classList.contains('on') && practiceView !== 'list' && dialog.hidden) {
+        renderPractice();
+        return;
+      }
+      if (document.getElementById('page-me').classList.contains('on') && meView !== 'home') {
+        renderMe();
+        return;
+      }
+      dialog.hidden = true;
       if (view === 'dialog') showSubs(currentScene);
       else showScenes();
     };
@@ -714,9 +1158,20 @@
           });
         })
         .then(function (data) {
-          if (currentScene != null && currentItem != null) markLearned(currentScene, currentItem);
+          if (currentScene != null && currentItem != null) {
+            var item = SCENES[currentScene].items[currentItem];
+            var good = data.rating === '优秀' || data.rating === '不错';
+            if (good) {
+              markSentenceMastered(item.merchantEn);
+              markPassed(currentScene, currentItem);
+              bumpWrongGoods(currentScene, currentItem);
+            } else {
+              addWrong(currentScene, currentItem);
+            }
+          }
           renderScore(data);
           setStatus('评分完成，可再次按住重试');
+          if (dialogMode === 'daily') showDailyNext();
         })
         .catch(function (err) {
           setStatus('评分失败：' + err.message);
@@ -748,12 +1203,109 @@
       }
       document.getElementById('score-comment').textContent = comment;
       if (data.warning) {
-        document.getElementById('score-comment').textContent =
-          comment + (comment ? ' ' : '') + data.warning;
+        console.warn('score warning:', data.warning);
       }
     }
 
-    function showTab(name) {
+    function showBadgePop(src, title) {
+      document.getElementById('badge-pop-img').src = src;
+      document.getElementById('badge-pop-text').textContent = title + ' 已激活';
+      document.getElementById('badge-pop').hidden = false;
+    }
+
+    function checkBadges() {
+      var seen = loadJson(BADGE_KEY, {});
+      var streak = getStreakDays();
+      var mastered = masteredSentenceCount();
+      var queue = [];
+      if (streak >= 7 && !seen.days7) {
+        seen.days7 = true;
+        queue.push({ src: 'picture/7days.png', title: '连续学习 7 天' });
+      }
+      if (mastered >= 20 && !seen.sent20) {
+        seen.sent20 = true;
+        queue.push({ src: 'picture/20sentences.png', title: '掌握 20 句' });
+      }
+      if (queue.length) saveJson(BADGE_KEY, seen);
+      function next() {
+        if (!queue.length) {
+          document.getElementById('badge-pop').hidden = true;
+          return;
+        }
+        var b = queue.shift();
+        showBadgePop(b.src, b.title);
+        document.getElementById('badge-pop').onclick = function () {
+          document.getElementById('badge-pop').onclick = null;
+          next();
+        };
+      }
+      if (queue.length) next();
+    }
+
+    function renderMe() {
+      meView = 'home';
+      var name = getProfile().name;
+      var streak = getStreakDays();
+      var mastered = masteredSentenceCount();
+      var daysOn = streak >= 7;
+      var sentOn = mastered >= 20;
+      var root = document.getElementById('me-root');
+      root.className = 'me-home';
+      root.innerHTML =
+        '<div class="me-name-row">' +
+          '<h2 id="me-name">' + escapeHtml(name) + '</h2>' +
+          '<button type="button" id="me-edit" aria-label="修改昵称">' + PEN_ICON + '</button>' +
+        '</div>' +
+        '<div class="me-stats">' +
+          '<div class="home-box"><p class="k">总时长</p><p class="v">' + formatStudy(getStudyMs()) + '</p></div>' +
+          '<div class="home-box"><p class="k">连续天数</p><p class="v">' + streak + ' 天</p></div>' +
+          '<div class="home-box"><p class="k">掌握句子</p><p class="v">' + mastered + ' 句</p></div>' +
+        '</div>' +
+        '<div class="me-badges">' +
+          '<div class="me-badge days7"><img src="picture/7days' + (daysOn ? '' : '_grey') + '.png" alt="连续7天"><div class="cap">连续 7 天</div></div>' +
+          '<div class="me-badge"><img src="picture/20sentences' + (sentOn ? '' : '_grey') + '.png" alt="掌握20句"><div class="cap">掌握 20 句</div></div>' +
+        '</div>' +
+        '<div class="me-row" data-me="feedback">意见反馈</div>' +
+        '<div class="me-row" data-me="about">关于我们</div>';
+      backBtn.hidden = true;
+      checkBadges();
+    }
+
+    function renderAbout() {
+      meView = 'about';
+      var root = document.getElementById('me-root');
+      root.className = 'about';
+      root.innerHTML =
+        '<div class="about-wrap">' +
+          '<div class="about-head"><h1>能开口就行</h1><p class="sub">AI辅助西湖商户英语口语学习工具</p></div>' +
+          '<div class="about-slides">' +
+            '<div class="about-block"><h2>一句话介绍</h2><p>“能开口就行”是一款面向惠州西湖景区商户的AI英语口语学习工具，聚焦高频接待场景，帮助商户在短时间内掌握3—5句关键英语，让跨文化交流顺畅发生。</p></div>' +
+            '<div class="about-block"><h2>我们为什么做</h2><p>随着240小时过境免签政策落地，越来越多的外国游客来到惠州西湖。2025年广东接待入境游客9030.8万人次，同比增长38.2%。但在美景背后，语言不通成为真实难题。调研显示，66.67%的西湖商户只会简单问候语，能流利使用英语的为零。一句简单问价，可能变成一次失败交流。</p></div>' +
+            '<div class="about-block"><h2>我们怎么做</h2><p>我们设计了一款AI辅助的商户英语口语学习工具。不用背单词，不用学语法，只学用得上的一两句。工具聚焦商户高频工作场景：点餐、购物、问路、价格协商。每个场景只需掌握3到5个关键句子。5到10分钟，就能学会一次完整接待对话。</p></div>' +
+            '<div class="about-block"><h2>产品特色</h2><ul><li>不背单词，不学语法</li><li>短时高频，即学即用</li><li>真实场景，关键句优先</li><li>AI辅助，开口练习</li><li>网页即开即用</li></ul></div>' +
+            '<div class="about-block"><h2>适合谁</h2><p>惠州西湖景区及惠州其他景区商户、店员、文旅从业者，以及希望提升涉外接待能力的一线服务人员。</p></div>' +
+            '<div class="about-block"><h2>我们的愿景</h2><p>政策的“大动脉”已经打通，最后“面对面”的那一句话，我们想帮商户说出来。未来，我们计划将工具推广至惠州更多景区，并加入实景视频跟读功能，让学习更有沉浸感。</p><p>能开口就行——让每一位商户，都能自信接待远方的客人。</p></div>' +
+            '<div class="about-block"><h2>联系我们</h2><p>项目名称：能开口就行</p><p>联系方式：15812519367</p><p>版本：V1.0</p><p>更新日期：2026年9月</p></div>' +
+          '</div>' +
+          '<p class="about-foot">数据说明：文中调研数据来自项目调研，仅用于项目介绍。</p>' +
+        '</div>';
+      backBtn.hidden = false;
+    }
+
+    function renderFeedback() {
+      meView = 'feedback';
+      var root = document.getElementById('me-root');
+      root.className = 'fb';
+      root.innerHTML =
+        '<div class="fb-box">' +
+          '<h2>意见反馈</h2>' +
+          '<textarea id="fb-text" placeholder="请写下你的建议或问题"></textarea>' +
+          '<button type="button" id="fb-send">提交</button>' +
+        '</div>';
+      backBtn.hidden = false;
+    }
+
+    function showTab(name, keepPractice) {
       var ids = { home: 'page-home', scenes: 'page-scenes', practice: 'page-practice', me: 'page-me' };
       for (var k in ids) {
         document.getElementById(ids[k]).classList.toggle('on', k === name);
@@ -762,22 +1314,112 @@
       for (var t = 0; t < tabs.length; t++) {
         tabs[t].classList.toggle('on', tabs[t].getAttribute('data-page') === name);
       }
+      applyHomeBg(name === 'home');
       if (name === 'home') renderHome();
+      if (name === 'practice') {
+        if (keepPractice && practiceView !== 'list') renderPracticeDetail(practiceView);
+        else renderPractice();
+      }
+      if (name === 'me') renderMe();
     }
+
+    dailyNextBtn.onclick = function () {
+      advanceDaily();
+    };
+
+    document.getElementById('page-practice').onclick = function (e) {
+      var open = e.target.closest('[data-open]');
+      if (open && practiceView === 'list') {
+        renderPracticeDetail(open.getAttribute('data-open'));
+        return;
+      }
+      var start = e.target.closest('#daily-start');
+      if (start) {
+        var data = getDaily();
+        if (data.idx >= data.queue.length) return;
+        var cur = data.queue[data.idx];
+        openItem(cur.si, cur.ii, 'daily');
+        return;
+      }
+      var row = e.target.closest('.prac-row');
+      if (row) {
+        openItem(Number(row.getAttribute('data-si')), Number(row.getAttribute('data-ii')), 'wrong');
+        return;
+      }
+      var speakBtn = e.target.closest('.speak');
+      if (speakBtn) {
+        var en = speakBtn.previousElementSibling;
+        if (en && en.classList.contains('en')) speak(en.textContent, speakBtn);
+        return;
+      }
+      var favBtn = e.target.closest('.fav');
+      if (!favBtn) return;
+      var enText = favBtn.getAttribute('data-en') || '';
+      var zhText = favBtn.getAttribute('data-zh') || '';
+      toggleFav(enText, zhText);
+      renderPracticeDetail('fav');
+    };
+
+    document.getElementById('page-me').onclick = function (e) {
+      if (e.target.closest('#me-edit')) {
+        var next = window.prompt('请输入昵称', getProfile().name);
+        if (next != null && next.trim()) {
+          saveJson(PROFILE_KEY, { name: next.trim() });
+          renderMe();
+        }
+        return;
+      }
+      var row = e.target.closest('[data-me]');
+      if (!row) {
+        if (e.target.id === 'fb-send') {
+          var text = (document.getElementById('fb-text').value || '').trim();
+          if (!text) return;
+          var list = loadJson('talk_talk_feedback', []);
+          list.push({ t: Date.now(), text: text });
+          saveJson('talk_talk_feedback', list);
+          alert('已提交，感谢反馈');
+          renderMe();
+        }
+        return;
+      }
+      var act = row.getAttribute('data-me');
+      if (act === 'about') renderAbout();
+      if (act === 'feedback') renderFeedback();
+    };
+
+    setInterval(function () {
+      if (document.visibilityState === 'visible') addStudyMs(10000);
+    }, 10000);
+    window.addEventListener('beforeunload', function () { addStudyMs(5000); });
 
     document.getElementById('tabbar').onclick = function (e) {
       var b = e.target.closest('button');
-      if (b) showTab(b.getAttribute('data-page'));
+      if (!b) return;
+      stopRecording(true);
+      speechSynthesis.cancel();
+      hideDailyNext();
+      dialog.hidden = true;
+      dialog.classList.remove('daily-mode');
+      dialog.classList.remove('daily-done-view');
+      dialogMode = 'normal';
+      if (view === 'dialog' && currentScene != null) showSubs(currentScene);
+      showTab(b.getAttribute('data-page'));
+      backBtn.hidden = b.getAttribute('data-page') !== 'scenes' || view !== 'subs';
     };
 
     document.getElementById('page-home').onclick = function (e) {
       var btn = e.target.closest('.speak');
       if (!btn) return;
       var en = btn.previousElementSibling;
-      if (en && en.classList.contains('en')) speak(en.textContent, btn);
+      if (en && en.classList.contains('en')) {
+        speak(en.textContent, btn);
+      }
     };
 
     showScenes();
+    window.addEventListener('resize', function () {
+      if (document.body.classList.contains('home-on')) applyHomeBg(true);
+    });
     showTab('home');
   </script>
 </body>
