@@ -264,7 +264,17 @@
         body: JSON.stringify({ target: target, transcript: transcript })
       })
         .then(function (res) {
-          return res.json().then(function (data) {
+          return res.text().then(function (text) {
+            var data;
+            try {
+              data = JSON.parse(text);
+            } catch (e) {
+              throw new Error(
+                '接口返回了非 JSON（HTTP ' + res.status + '）。' +
+                '请确认打开的是 Render 地址，且服务已醒来。预览：' +
+                text.replace(/\s+/g, ' ').slice(0, 120)
+              );
+            }
             if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
             return data;
           });
