@@ -5,6 +5,7 @@ html, body {
 }
 
 #cards:not([hidden]) {
+  position: relative;
   min-height: 100%;
   display: flex;
   flex-wrap: wrap;
@@ -35,6 +36,11 @@ html, body {
   position: absolute;
   top: 1em;
   left: 1em;
+  z-index: 2;
+}
+
+#back[hidden] {
+  display: none;
 }
 
 .card {
@@ -48,6 +54,16 @@ html, body {
 
 .card:hover {
   transform: scale(1.06);
+}
+
+.hl {
+  background: #ffe58a;
+  padding: 0 .12em;
+  border-radius: 2px;
+}
+
+.fav {
+  margin-left: .35em;
 }
 
 .practice {

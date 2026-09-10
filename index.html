@@ -7,84 +7,273 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="cards">
-    <div class="card">
-      问价
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">How much is this?</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：这个多少钱？</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">It's fifty yuan.</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：50块。</p>
-      </template>
-    </div>
-    <div class="card">
-      价格协商
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">That's too expensive.</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：太贵了。</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">This is the lowest price I can offer. It's really good value for the quality.</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：这是我给的最低价了。这个质量真的很值。</p>
-      </template>
-    </div>
-    <div class="card">
-      商品介绍
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">Is this handmade?</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：这个是手工做的吗？</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">Yes, it’s handmade locally.</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：是的，本地手工做的。</p>
-      </template>
-    </div>
-    <div class="card">
-      问路与引导
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">Where is the entrance?</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：入口在哪里？</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">Go straight and turn left.</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：直走然后左转。</p>
-      </template>
-    </div>
-    <div class="card">
-      结账与找零
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">Can I pay by card?</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：可以刷卡吗？</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">Sorry, cash only.</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：抱歉，只收现金。</p>
-      </template>
-    </div>
-    <div class="card">
-      点餐与菜品介绍
-      <template>
-        <p>外国游客问题：</p>
-        <p>英文句子：<span class="en">What's this dish?</span> <button type="button" class="speak">播放</button></p>
-        <p>中文翻译：这道菜是什么？</p>
-        <p>商家回答：</p>
-        <p>英文句子：<span class="en merchant-en">It's our local specialty. Very delicious!</span> <button type="button" class="speak">播放</button></p>
-        <p>对应中文：这是我们的本地特色菜，很好吃！</p>
-      </template>
-    </div>
-  </div>
-
+  <button type="button" id="back" hidden>返回</button>
+  <div id="cards"></div>
   <div id="dialog" hidden>
-    <button type="button" id="back">返回</button>
     <div id="dialog-body"></div>
   </div>
 
   <script>
+    var SCENES = [
+      {
+        title: '问价与价格协商',
+        items: [
+          {
+            title: '询问价格',
+            visitorEn: 'How much does this cost?',
+            visitorZh: '这个多少钱？',
+            visitorHl: ['How much', 'cost', '多少钱'],
+            merchantEn: "It's 80 yuan.",
+            merchantZh: '80块。',
+            merchantHl: ['80 yuan', '80块']
+          },
+          {
+            title: '讨价还价',
+            visitorEn: 'Can you make it cheaper?',
+            visitorZh: '能便宜点吗？',
+            visitorHl: ['cheaper', '便宜'],
+            merchantEn: 'I can give you 10% off.',
+            merchantZh: '我可以给你打九折。',
+            merchantHl: ['10% off', '九折']
+          },
+          {
+            title: '批量购买',
+            visitorEn: 'What if I buy three?',
+            visitorZh: '如果我买三个呢？',
+            visitorHl: ['buy three', '三个'],
+            merchantEn: "If you buy two, I'll give you a discount.",
+            merchantZh: '买两件的话，我给你优惠。',
+            merchantHl: ['buy two', 'discount', '两件', '优惠']
+          },
+          {
+            title: '询问最低价',
+            visitorEn: "What's your best price?",
+            visitorZh: '最低多少钱？',
+            visitorHl: ['best price', '最低'],
+            merchantEn: "That's the lowest price I can offer.",
+            merchantZh: '这是我能给的最低价了。',
+            merchantHl: ['lowest price', '最低价']
+          },
+          {
+            title: '价格合理性',
+            visitorEn: 'Why is it so expensive?',
+            visitorZh: '为什么这么贵？',
+            visitorHl: ['expensive', '这么贵'],
+            merchantEn: "The price is already very fair. It's handmade.",
+            merchantZh: '这个价格已经很公道了，是手工做的。',
+            merchantHl: ['fair', 'handmade', '公道', '手工']
+          }
+        ]
+      },
+      {
+        title: '商品介绍',
+        items: [
+          {
+            title: '材质',
+            visitorEn: 'What is it made of?',
+            visitorZh: '这是什么做的？',
+            visitorHl: ['made of', '什么做的'],
+            merchantEn: "It's made of silk.",
+            merchantZh: '这是丝绸做的。',
+            merchantHl: ['silk', '丝绸']
+          },
+          {
+            title: '产地',
+            visitorEn: 'Where is it from?',
+            visitorZh: '这是哪里产的？',
+            visitorHl: ['Where', 'from', '哪里产'],
+            merchantEn: "It's made in Huizhou.",
+            merchantZh: '这是惠州产的。',
+            merchantHl: ['Huizhou', '惠州']
+          },
+          {
+            title: '手工/机器',
+            visitorEn: 'Is it machine-made?',
+            visitorZh: '这是机器做的吗？',
+            visitorHl: ['machine-made', '机器'],
+            merchantEn: "No, it's handmade.",
+            merchantZh: '不是，是手工做的。',
+            merchantHl: ['handmade', '手工']
+          },
+          {
+            title: '颜色/尺寸',
+            visitorEn: 'Do you have other colors?',
+            visitorZh: '有其他颜色吗？',
+            visitorHl: ['colors', '颜色'],
+            merchantEn: 'It comes in different colors.',
+            merchantZh: '它有不同颜色。',
+            merchantHl: ['different colors', '不同颜色']
+          },
+          {
+            title: '受欢迎程度',
+            visitorEn: 'Is this popular?',
+            visitorZh: '这个受欢迎吗？',
+            visitorHl: ['popular', '受欢迎'],
+            merchantEn: 'This one is very popular with tourists.',
+            merchantZh: '这款很受游客欢迎。',
+            merchantHl: ['popular', 'tourists', '游客欢迎']
+          }
+        ]
+      },
+      {
+        title: '问路与引导',
+        items: [
+          {
+            title: '问入口',
+            visitorEn: 'How do I get to the entrance?',
+            visitorZh: '入口怎么走？',
+            visitorHl: ['entrance', '入口'],
+            merchantEn: 'The entrance is over there.',
+            merchantZh: '入口在那边。',
+            merchantHl: ['entrance', 'over there', '入口', '那边']
+          },
+          {
+            title: '问洗手间',
+            visitorEn: 'Where is the restroom?',
+            visitorZh: '洗手间在哪里？',
+            visitorHl: ['restroom', '洗手间'],
+            merchantEn: "Go straight and turn right. It's next to the bridge.",
+            merchantZh: '直走然后右转，在桥旁边。',
+            merchantHl: ['straight', 'turn right', 'bridge', '直走', '右转', '桥']
+          },
+          {
+            title: '问出口',
+            visitorEn: 'Which way is the exit?',
+            visitorZh: '出口在哪边？',
+            visitorHl: ['exit', '出口'],
+            merchantEn: 'Turn right at the corner.',
+            merchantZh: '在拐角处右转。',
+            merchantHl: ['Turn right', 'corner', '拐角', '右转']
+          },
+          {
+            title: '问景点',
+            visitorEn: 'How far is the pagoda?',
+            visitorZh: '塔有多远？',
+            visitorHl: ['How far', 'pagoda', '塔', '多远'],
+            merchantEn: "It's about five minutes' walk.",
+            merchantZh: '步行大约五分钟。',
+            merchantHl: ['five minutes', 'walk', '步行', '五分钟']
+          },
+          {
+            title: '问打车点',
+            visitorEn: 'Where can I get a taxi?',
+            visitorZh: '哪里可以打车？',
+            visitorHl: ['taxi', '打车'],
+            merchantEn: 'There is a taxi stand near the gate.',
+            merchantZh: '大门附近有个出租车点。',
+            merchantHl: ['taxi stand', 'gate', '出租车点', '大门']
+          }
+        ]
+      },
+      {
+        title: '结账与找零',
+        items: [
+          {
+            title: '支付方式',
+            visitorEn: 'How can I pay?',
+            visitorZh: '我怎么付款？',
+            visitorHl: ['pay', '付款'],
+            merchantEn: 'You can pay by WeChat or Alipay.',
+            merchantZh: '可以用微信或支付宝支付。',
+            merchantHl: ['WeChat', 'Alipay', '微信', '支付宝']
+          },
+          {
+            title: '现金找零',
+            visitorEn: 'Here is 100 yuan.',
+            visitorZh: '这是100元。',
+            visitorHl: ['100 yuan', '100元'],
+            merchantEn: 'Here is your change.',
+            merchantZh: '这是找您的零钱。',
+            merchantHl: ['change', '零钱']
+          },
+          {
+            title: '刷卡',
+            visitorEn: 'Do you take credit cards?',
+            visitorZh: '你们收信用卡吗？',
+            visitorHl: ['credit cards', '信用卡'],
+            merchantEn: "Sorry, we don't accept credit cards.",
+            merchantZh: '抱歉，我们不收信用卡。',
+            merchantHl: ['credit cards', "don't accept", '不收', '信用卡']
+          },
+          {
+            title: '移动支付',
+            visitorEn: 'Can I use Alipay?',
+            visitorZh: '我可以用支付宝吗？',
+            visitorHl: ['Alipay', '支付宝'],
+            merchantEn: 'Yes, you can scan the QR code.',
+            merchantZh: '可以，你扫一下二维码。',
+            merchantHl: ['scan', 'QR code', '扫', '二维码']
+          },
+          {
+            title: '发票/收据',
+            visitorEn: 'Can I have a receipt?',
+            visitorZh: '可以给我一张收据吗？',
+            visitorHl: ['receipt', '收据'],
+            merchantEn: 'Sure, here you are.',
+            merchantZh: '当然，给你。',
+            merchantHl: ['here you are', '给你']
+          }
+        ]
+      },
+      {
+        title: '点餐与菜品介绍',
+        items: [
+          {
+            title: '推荐菜品',
+            visitorEn: 'What do you recommend?',
+            visitorZh: '你推荐什么？',
+            visitorHl: ['recommend', '推荐'],
+            merchantEn: "I recommend the steamed fish. It's very fresh.",
+            merchantZh: '我推荐清蒸鱼，很新鲜。',
+            merchantHl: ['steamed fish', 'fresh', '清蒸鱼', '新鲜']
+          },
+          {
+            title: '点餐',
+            visitorEn: "I'd like one bowl of noodles.",
+            visitorZh: '我要一碗面。',
+            visitorHl: ['noodles', '一碗面'],
+            merchantEn: 'Sure, one bowl of noodles. Anything else?',
+            merchantZh: '好的，一碗面。还要别的吗？',
+            merchantHl: ['noodles', 'Anything else', '一碗面', '别的']
+          },
+          {
+            title: '热门菜',
+            visitorEn: "What's popular here?",
+            visitorZh: '这里什么菜受欢迎？',
+            visitorHl: ['popular', '受欢迎'],
+            merchantEn: 'The spicy chicken is very popular.',
+            merchantZh: '辣子鸡很受欢迎。',
+            merchantHl: ['spicy chicken', 'popular', '辣子鸡', '受欢迎']
+          },
+          {
+            title: '口味调整',
+            visitorEn: 'Is it spicy?',
+            visitorZh: '辣吗？',
+            visitorHl: ['spicy', '辣'],
+            merchantEn: "It's a little spicy. I can make it mild.",
+            merchantZh: '有点辣，我可以做成微辣。',
+            merchantHl: ['spicy', 'mild', '辣', '微辣']
+          },
+          {
+            title: '等待时间',
+            visitorEn: 'How long will it take?',
+            visitorZh: '要等多久？',
+            visitorHl: ['How long', '多久'],
+            merchantEn: 'Please wait a few minutes.',
+            merchantZh: '请等几分钟。',
+            merchantHl: ['wait', 'minutes', '等', '几分钟']
+          }
+        ]
+      }
+    ];
+
+    var FAV_KEY = 'talk_talk_favs';
     var cards = document.getElementById('cards');
     var dialog = document.getElementById('dialog');
     var dialogBody = document.getElementById('dialog-body');
+    var backBtn = document.getElementById('back');
+    var currentScene = null;
+    var view = 'scenes';
 
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
@@ -92,13 +281,93 @@
     var finalTranscript = '';
     var scoring = false;
 
-    cards.onclick = function (e) {
-      var card = e.target.closest('.card');
-      if (!card) return;
-      dialogBody.replaceChildren(card.querySelector('template').content.cloneNode(true));
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function highlight(text, words) {
+      var html = escapeHtml(text);
+      if (!words || !words.length) return html;
+      var sorted = words.slice().sort(function (a, b) { return b.length - a.length; });
+      for (var i = 0; i < sorted.length; i++) {
+        var w = escapeHtml(sorted[i]);
+        if (!w) continue;
+        var re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        html = html.replace(re, '<span class="hl">$&</span>');
+      }
+      return html;
+    }
+
+    function loadFavs() {
+      try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); }
+      catch (e) { return []; }
+    }
+
+    function isFav(en, zh) {
+      return loadFavs().some(function (x) { return x.en === en && x.zh === zh; });
+    }
+
+    function saveFav(en, zh) {
+      var list = loadFavs();
+      if (isFav(en, zh)) return;
+      list.push({ en: en, zh: zh });
+      localStorage.setItem(FAV_KEY, JSON.stringify(list));
+    }
+
+    function renderCards(list, kind) {
+      var html = '';
+      for (var i = 0; i < list.length; i++) {
+        html += '<div class="card" data-kind="' + kind + '" data-i="' + i + '">' +
+          escapeHtml(list[i].title) + '</div>';
+      }
+      cards.innerHTML = html;
+      cards.hidden = false;
+      dialog.hidden = true;
+      backBtn.hidden = kind !== 'item';
+      view = kind === 'scene' ? 'scenes' : 'subs';
+    }
+
+    function showScenes() {
+      currentScene = null;
+      renderCards(SCENES, 'scene');
+    }
+
+    function showSubs(si) {
+      currentScene = si;
+      renderCards(SCENES[si].items, 'item');
+    }
+
+    function openItem(item) {
+      view = 'dialog';
+      dialogBody.innerHTML =
+        '<p>外国游客问题：</p>' +
+        '<p>英文句子：<span class="en">' + highlight(item.visitorEn, item.visitorHl) + '</span> ' +
+          '<button type="button" class="speak">播放</button>' +
+          '<button type="button" class="fav" data-en="' + escapeHtml(item.visitorEn) + '" data-zh="' + escapeHtml(item.visitorZh) + '">' +
+            (isFav(item.visitorEn, item.visitorZh) ? '已收藏' : '收藏') + '</button></p>' +
+        '<p>中文翻译：' + highlight(item.visitorZh, item.visitorHl) + '</p>' +
+        '<p>商家回答：</p>' +
+        '<p>英文句子：<span class="en merchant-en">' + highlight(item.merchantEn, item.merchantHl) + '</span> ' +
+          '<button type="button" class="speak">播放</button>' +
+          '<button type="button" class="fav" data-en="' + escapeHtml(item.merchantEn) + '" data-zh="' + escapeHtml(item.merchantZh) + '">' +
+            (isFav(item.merchantEn, item.merchantZh) ? '已收藏' : '收藏') + '</button></p>' +
+        '<p>对应中文：' + highlight(item.merchantZh, item.merchantHl) + '</p>';
       mountPracticePanel();
       cards.hidden = true;
       dialog.hidden = false;
+      backBtn.hidden = false;
+    }
+
+    cards.onclick = function (e) {
+      var card = e.target.closest('.card');
+      if (!card) return;
+      var i = Number(card.getAttribute('data-i'));
+      if (card.getAttribute('data-kind') === 'scene') showSubs(i);
+      else openItem(SCENES[currentScene].items[i]);
     };
 
     function speak(text) {
@@ -117,17 +386,25 @@
     speechSynthesis.getVoices();
 
     dialogBody.onclick = function (e) {
-      var btn = e.target.closest('.speak');
-      if (!btn) return;
-      var en = btn.previousElementSibling;
-      if (en && en.classList.contains('en')) speak(en.textContent);
+      var speakBtn = e.target.closest('.speak');
+      if (speakBtn) {
+        var en = speakBtn.previousElementSibling;
+        if (en && en.classList.contains('en')) speak(en.textContent);
+        return;
+      }
+      var favBtn = e.target.closest('.fav');
+      if (!favBtn) return;
+      var enText = favBtn.getAttribute('data-en') || '';
+      var zhText = favBtn.getAttribute('data-zh') || '';
+      saveFav(enText, zhText);
+      favBtn.textContent = '已收藏';
     };
 
-    document.getElementById('back').onclick = function () {
+    backBtn.onclick = function () {
       stopRecording(true);
       speechSynthesis.cancel();
-      dialog.hidden = true;
-      cards.hidden = false;
+      if (view === 'dialog') showSubs(currentScene);
+      else showScenes();
     };
 
     function mountPracticePanel() {
@@ -237,7 +514,6 @@
 
       if (skipScore) return;
 
-      // 稍等最终结果回调
       setTimeout(function () {
         submitScore(finalTranscript.trim());
       }, 350);
@@ -315,6 +591,8 @@
           comment + (comment ? ' ' : '') + data.warning;
       }
     }
+
+    showScenes();
   </script>
 </body>
 </html>
