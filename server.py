@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import traceback
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -23,6 +24,12 @@ ARK_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 
 app = Flask(__name__, static_folder=APP_DIR, static_url_path="")
 CORS(app)
+
+
+@app.errorhandler(500)
+def handle_500(err):
+    print("500:", traceback.format_exc())
+    return jsonify({"error": str(err) or "Internal Server Error"}), 500
 
 
 def rating_from_overall(score: float) -> str:
@@ -135,9 +142,21 @@ def score_with_doubao(target: str, transcript: str) -> dict[str, Any]:
         raise RuntimeError(f"方舟 API 错误 {resp.status_code}: {resp.text[:500]}")
 
     data = resp.json()
-    content = data["choices"][0]["message"]["content"]
-    parsed = extract_json(content)
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"方舟返回结构异常: {json.dumps(data, ensure_ascii=False)[:500]}") from exc
 
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(item.get("text") or "")
+            elif isinstance(item, str):
+                parts.append(item)
+        content = "\n".join(parts)
+
+    parsed = extract_json(str(content))
     pronunciation = clamp_score(parsed.get("pronunciation"))
     fluency = clamp_score(parsed.get("fluency"))
     completeness = clamp_score(parsed.get("completeness"))
@@ -191,6 +210,8 @@ def score():
         return jsonify(result)
     except Exception as exc:
         msg = str(exc)
+        print("score error:", msg)
+        print(traceback.format_exc())
         # 模型未开通 / 找不到时，使用本地兜底，保证前端流程可演示
         if "ModelNotOpen" in msg or "InvalidEndpointOrModel" in msg or "NotFound" in msg:
             result = local_fallback_score(target, transcript)
