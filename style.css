@@ -4,6 +4,10 @@ html, body {
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+body {
+  position: relative;
+}
+
 #cards:not([hidden]) {
   position: relative;
   min-height: 100%;
@@ -14,6 +18,11 @@ html, body {
   gap: 1em;
   padding: 1em;
   box-sizing: border-box;
+}
+
+#cards.col:not([hidden]) {
+  flex-direction: column;
+  flex-wrap: nowrap;
 }
 
 #dialog:not([hidden]) {
@@ -34,9 +43,17 @@ html, body {
 
 #back {
   position: absolute;
-  top: 1em;
-  left: 1em;
+  top: .7em;
+  left: .7em;
   z-index: 2;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 2em;
+  line-height: 1;
+  cursor: pointer;
 }
 
 #back[hidden] {
@@ -50,6 +67,7 @@ html, body {
   cursor: pointer;
   transition: transform .15s;
   background: #fff;
+  text-align: left;
 }
 
 .card:hover {
@@ -62,8 +80,62 @@ html, body {
   border-radius: 2px;
 }
 
+.speak,
 .fav {
+  vertical-align: middle;
   margin-left: .35em;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.speak svg polygon {
+  fill: none;
+  stroke: #111;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.speak.playing svg polygon {
+  fill: #111;
+}
+
+.fav svg path {
+  fill: none;
+  stroke: #111;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.fav.on svg path {
+  fill: #f5c518;
+  stroke: #e0a800;
+}
+
+.fav-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.toast {
+  position: absolute;
+  left: calc(100% + .4em);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: .25em .6em;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  font-size: .8em;
+  line-height: 1.3;
+  color: #333;
+  pointer-events: none;
+  z-index: 3;
 }
 
 .practice {
