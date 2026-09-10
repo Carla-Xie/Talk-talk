@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>景区英语跟读评分</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="cards">
+    <div class="card">
+      问价
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">How much is this?</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：这个多少钱？</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">It's fifty yuan.</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：50块。</p>
+      </template>
+    </div>
+    <div class="card">
+      价格协商
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">That's too expensive.</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：太贵了。</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">This is the lowest price I can offer. It's really good value for the quality.</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：这是我给的最低价了。这个质量真的很值。</p>
+      </template>
+    </div>
+    <div class="card">
+      商品介绍
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">Is this handmade?</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：这个是手工做的吗？</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">Yes, it’s handmade locally.</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：是的，本地手工做的。</p>
+      </template>
+    </div>
+    <div class="card">
+      问路与引导
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">Where is the entrance?</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：入口在哪里？</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">Go straight and turn left.</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：直走然后左转。</p>
+      </template>
+    </div>
+    <div class="card">
+      结账与找零
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">Can I pay by card?</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：可以刷卡吗？</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">Sorry, cash only.</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：抱歉，只收现金。</p>
+      </template>
+    </div>
+    <div class="card">
+      点餐与菜品介绍
+      <template>
+        <p>外国游客问题：</p>
+        <p>英文句子：<span class="en">What's this dish?</span> <button type="button" class="speak">播放</button></p>
+        <p>中文翻译：这道菜是什么？</p>
+        <p>商家回答：</p>
+        <p>英文句子：<span class="en merchant-en">It's our local specialty. Very delicious!</span> <button type="button" class="speak">播放</button></p>
+        <p>对应中文：这是我们的本地特色菜，很好吃！</p>
+      </template>
+    </div>
+  </div>
+
+  <div id="dialog" hidden>
+    <button type="button" id="back">返回</button>
+    <div id="dialog-body"></div>
+  </div>
+
+  <script>
+    var cards = document.getElementById('cards');
+    var dialog = document.getElementById('dialog');
+    var dialogBody = document.getElementById('dialog-body');
+
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    var recording = false;
+    var finalTranscript = '';
+    var scoring = false;
+
+    cards.onclick = function (e) {
+      var card = e.target.closest('.card');
+      if (!card) return;
+      dialogBody.replaceChildren(card.querySelector('template').content.cloneNode(true));
+      mountPracticePanel();
+      cards.hidden = true;
+      dialog.hidden = false;
+    };
+
+    function speak(text) {
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      var voices = speechSynthesis.getVoices();
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].lang.indexOf('en') === 0) {
+          u.voice = voices[i];
+          break;
+        }
+      }
+      speechSynthesis.speak(u);
+    }
+    speechSynthesis.getVoices();
+
+    dialogBody.onclick = function (e) {
+      var btn = e.target.closest('.speak');
+      if (!btn) return;
+      var en = btn.previousElementSibling;
+      if (en && en.classList.contains('en')) speak(en.textContent);
+    };
+
+    document.getElementById('back').onclick = function () {
+      stopRecording(true);
+      speechSynthesis.cancel();
+      dialog.hidden = true;
+      cards.hidden = false;
+    };
+
+    function mountPracticePanel() {
+      var targetEl = dialogBody.querySelector('.merchant-en') || dialogBody.querySelector('.en');
+      var target = targetEl ? targetEl.textContent.trim() : '';
+
+      var panel = document.createElement('div');
+      panel.className = 'practice';
+      panel.innerHTML =
+        '<p class="practice-hint">按住下方按钮，朗读商家英文回答</p>' +
+        '<p class="practice-target"></p>' +
+        '<button type="button" class="record-btn" id="record-btn">按住<br>录音</button>' +
+        '<p class="record-status" id="record-status">松开后自动提交豆包评分</p>' +
+        '<div class="score-panel" id="score-panel" hidden>' +
+          '<p class="score-rating" id="score-rating"></p>' +
+          '<div class="score-row"><span>发音准确度</span><strong id="score-pronunciation">-</strong></div>' +
+          '<div class="score-row"><span>流利度</span><strong id="score-fluency">-</strong></div>' +
+          '<div class="score-row"><span>完整度</span><strong id="score-completeness">-</strong></div>' +
+          '<p class="score-transcript" id="score-transcript"></p>' +
+          '<p class="score-comment" id="score-comment"></p>' +
+        '</div>';
+
+      panel.querySelector('.practice-target').textContent = target;
+      dialogBody.appendChild(panel);
+
+      var btn = panel.querySelector('#record-btn');
+      btn.addEventListener('pointerdown', onRecordStart);
+      btn.addEventListener('pointerup', onRecordEnd);
+      btn.addEventListener('pointercancel', onRecordEnd);
+      btn.addEventListener('pointerleave', function (ev) {
+        if (recording) onRecordEnd(ev);
+      });
+      btn.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+    }
+
+    function setStatus(text) {
+      var el = document.getElementById('record-status');
+      if (el) el.textContent = text;
+    }
+
+    function onRecordStart(e) {
+      e.preventDefault();
+      if (scoring) return;
+      if (!SpeechRecognition) {
+        setStatus('当前浏览器不支持语音识别，请用 Chrome / Edge');
+        return;
+      }
+
+      var btn = document.getElementById('record-btn');
+      if (btn.setPointerCapture) {
+        try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+
+      finalTranscript = '';
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = function (event) {
+        var interim = '';
+        var finalText = '';
+        for (var i = 0; i < event.results.length; i++) {
+          var piece = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalText += piece;
+          else interim += piece;
+        }
+        if (finalText) finalTranscript = finalText.trim();
+        setStatus('识别中：' + (finalTranscript || interim || '…'));
+      };
+
+      recognition.onerror = function (event) {
+        setStatus('识别出错：' + (event.error || 'unknown'));
+      };
+
+      try {
+        recognition.start();
+        recording = true;
+        btn.classList.add('recording');
+        btn.innerHTML = '录音中';
+        setStatus('正在听，请朗读…');
+      } catch (err) {
+        setStatus('无法启动麦克风：' + err.message);
+      }
+    }
+
+    function onRecordEnd(e) {
+      if (e) e.preventDefault();
+      if (!recording) return;
+      stopRecording(false);
+    }
+
+    function stopRecording(skipScore) {
+      recording = false;
+      var btn = document.getElementById('record-btn');
+      if (btn) {
+        btn.classList.remove('recording');
+        btn.innerHTML = '按住<br>录音';
+      }
+
+      if (recognition) {
+        try { recognition.stop(); } catch (err) {}
+        recognition = null;
+      }
+
+      if (skipScore) return;
+
+      // 稍等最终结果回调
+      setTimeout(function () {
+        submitScore(finalTranscript.trim());
+      }, 350);
+    }
+
+    function submitScore(transcript) {
+      var targetEl = dialogBody.querySelector('.practice-target');
+      var target = targetEl ? targetEl.textContent.trim() : '';
+      if (!target) {
+        setStatus('未找到目标句子');
+        return;
+      }
+      if (!transcript) {
+        setStatus('没有识别到有效语音，请按住再说一次');
+        return;
+      }
+
+      scoring = true;
+      var btn = document.getElementById('record-btn');
+      if (btn) btn.disabled = true;
+      setStatus('正在提交豆包 Seed 评分…');
+
+      fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: target, transcript: transcript })
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+            return data;
+          });
+        })
+        .then(function (data) {
+          renderScore(data);
+          setStatus('评分完成，可再次按住重试');
+        })
+        .catch(function (err) {
+          setStatus('评分失败：' + err.message);
+        })
+        .finally(function () {
+          scoring = false;
+          if (btn) btn.disabled = false;
+        });
+    }
+
+    function renderScore(data) {
+      var panel = document.getElementById('score-panel');
+      var ratingEl = document.getElementById('score-rating');
+      panel.hidden = false;
+
+      ratingEl.className = 'score-rating';
+      if (data.rating === '优秀') ratingEl.classList.add('excellent');
+      else if (data.rating === '不错') ratingEl.classList.add('good');
+      else ratingEl.classList.add('retry');
+
+      ratingEl.textContent = '综合评级：' + data.rating + '（' + data.overall + ' 分）';
+      document.getElementById('score-pronunciation').textContent = data.pronunciation + ' / 100';
+      document.getElementById('score-fluency').textContent = data.fluency + ' / 100';
+      document.getElementById('score-completeness').textContent = data.completeness + ' / 100';
+      document.getElementById('score-transcript').textContent = '识别结果：' + (data.transcript || '');
+      var comment = data.comment ? ('点评：' + data.comment) : '';
+      if (data.source === 'local_fallback') {
+        comment = (comment ? comment + ' ' : '') + '（豆包模型未开通，当前为本地兜底评分）';
+      }
+      document.getElementById('score-comment').textContent = comment;
+    }
+  </script>
+</body>
+</html>
